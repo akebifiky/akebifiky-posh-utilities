@@ -84,12 +84,27 @@ Export-ModuleMember -Function TempDir
     sudo choco install python
 #>
 function SuDo {
+    param(
+        # Execute silently
+        [Switch]
+        $Silent
+    )
+
     if ($Args.Count -gt 0) {
         $CurrentDirectory = (Get-Location).Path
-        $Commands = "Set-Location $CurrentDirectory; Write-Host `"[Administrator] $CurrentDirectory> $args`"; $args; Pause; exit"
+        $Commands = "Set-Location $CurrentDirectory; Write-Host `"[Administrator] $CurrentDirectory> $args`"; $args;"
+        if (!$Silent) {
+            $Commands += "Pause;"
+        }
+        $Commands += "exit;"
         $bytes = [System.Text.Encoding]::Unicode.GetBytes($Commands)
         $EncodedCommand = [Convert]::ToBase64String($bytes)
-        Start-Process pwsh.exe -Verb RunAs -ArgumentList "-NoExit", "-encodedCommand", $EncodedCommand
+
+        if ($Silent) {
+            Start-Process pwsh.exe -Verb RunAs -WindowStyle Hidden -ArgumentList "-encodedCommand", $EncodedCommand
+        } else {
+            Start-Process pwsh.exe -Verb RunAs -ArgumentList "-NoExit", "-encodedCommand", $EncodedCommand
+        }
     }
     else {
         Start-Process pwsh.exe -Verb RunAs
