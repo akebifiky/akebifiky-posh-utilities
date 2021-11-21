@@ -96,3 +96,45 @@ function SuDo {
     }
 }
 Export-ModuleMember -Function SuDo
+
+
+<#
+    .Synopsis
+    ローカルサーバーへのホスト名をリストアップしたファイルをもとに、各ホスト名がWSLのIPアドレスへ解決されるよう hosts ファイルを更新します。
+
+    .Parameter Path
+    ホスト名をリストアップしたファイル。
+    当該ファイルは、1行に1つホスト名が記載されていることを想定する。
+
+    .Example
+    Update-WSL-Hosts hostnames.txt
+#>
+function Update-WSL-Hosts {
+    param(
+        # Path to the file that is list of hostnames
+        [Parameter(ValueFromPipeline = $True)]
+        [String]
+        $Path
+    )
+    if (!$Path) {
+        Write-Error "Please specify the path to file containing list of hostnames!"
+        return;
+    }
+    if (!(Test-Path -Path $Path -PathType Leaf)) {
+        Write-Error "The path $Path does not exist."
+        return;
+    }
+
+    $HostsFile = "C:\Windows\System32\drivers\etc\hosts"
+    $Hostnames = Get-Content $Path | Select-String -Pattern "^\s*#.*" -NotMatch
+    $HostnamePattern = "($([String]::Join("|", $Hostnames)))".Replace("\.", "\.")
+    $HostsFileContent = Get-Content $HostsFile | Select-String -Pattern $HostnamePattern -NotMatch
+    $WSLAddress = "$(wsl hostname -I)".Split(" ")[0]
+
+    Write-Host "Hostname source: $Path"
+    Write-Host "Resolved WSL IP: $WSLAddress"
+    $Hostnames | ForEach-Object { $HostsFileContent += "$WSLAddress    $_" }
+    [String]::Join([System.Environment]::NewLine, $HostsFileContent) | Out-File $HostsFile -NoNewline
+    Write-Host "Updated hosts successfully."
+}
+Export-ModuleMember -Function Update-WSL-Hosts
